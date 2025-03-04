@@ -1,0 +1,718 @@
+---
+title: "Tidal Energy Final Paper Analysis"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Load Library
+
+```{r}
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+
+```
+
+# Land Use Analysis
+
+```{r}
+data<-data.frame(
+  Location = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Plant", "Grangemouth Refinery"),
+  Distance = c(2600.00, 55596.77, 539.79, 262.91),
+  stringsAsFactors = FALSE
+)
+data$Location<-factor(data$Location)
+
+ggplot(data, aes(x = Location, y = Distance, color = Location)) +
+  geom_point(size = 4) + 
+  labs(
+    title = "Land Use of Energy Plants in Scotland",
+    x = "Locations",
+    y = "Land use (meters)"
+  ) + 
+  theme_minimal()
+```
+
+# Total Electricity Capacity
+
+```{r}
+power_plants <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Capacity = c(389, 1075, 13, 1550),
+  Unit = c("MW", "MW", "MW", "MW")
+)
+
+# Create bar plot
+ggplot(power_plants, aes(x = Plant, y = Capacity, fill = Plant)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste(Capacity, Unit)), vjust = -0.5) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Electricity Generation Capacity (MW) of Power Plants in Scotland",
+       x = "Power Plant",
+       y = "Capacity (MW)",
+       fill = "Power Plant")+
+scale_y_continuous(limits = c(0, 2000), breaks = seq(0, 2000, by = 500))
+
+```
+
+## PIE CHART EHHH
+
+```{r}
+# Calculate total capacity
+total_capacity <- sum(power_plants$Capacity)
+
+ggplot(power_plants, aes(x = "", y = Capacity, fill = Plant)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = paste0(round(Capacity/total_capacity*100, 1), "%")), 
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Proportion of Total Electricity Generation Capacity",
+       subtitle = paste("Total Capacity:", total_capacity, "MW"),
+       x = NULL, y = NULL, fill = "Power Plant") +
+  theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+```
+
+```{r}
+ggplot(power_plants, aes(area = Capacity, fill = Plant, label = paste(Plant, "\n", Capacity, "MW"))) +
+  geom_treemap() +
+  geom_treemap_text(colour = "white", place = "centre", size = 10) +
+  labs(title = "Electricity Generation Capacity (MW) of Power Plants in Scotland",
+       fill = "Power Plant") +
+  theme(legend.position = "none")
+```
+
+lollipop chart
+
+```{r}
+ggplot(power_plants, aes(x = reorder(Plant, Capacity), y = Capacity)) +
+  geom_segment(aes(xend = Plant, yend = 0), color = "grey") +
+  geom_point(size = 5, aes(color = Plant)) +
+  geom_text(aes(label = paste(Capacity, Unit)), vjust = -1) +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Electricity Generation Capacity (MW) of Power Plants in Scotland",
+       x = NULL,
+       y = "Capacity (MW)",
+       color = "Power Plant") +
+  theme(legend.position = "none")
+```
+
+waffle
+
+```{r}
+library(waffle)
+
+# Convert MW to squares (1 square = 10 MW)
+waffle_data <- power_plants$Capacity / 10
+names(waffle_data) <- power_plants$Plant
+
+waffle(waffle_data, rows = 10, size = 0.5,
+       colors = c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"),
+       title = "Electricity Generation Capacity of Power Plants in Scotland",
+       xlab = "1 Square = 10 MW") +
+  theme(legend.position = "bottom")
+```
+
+## Bubble (no.)
+
+```{r}
+ggplot(power_plants, aes(x = 1, y = 1, size = Capacity, color = Plant)) +
+  geom_point(alpha = 0.7) +
+  scale_size_area(max_size = 30) +
+  geom_text(aes(label = paste(Plant, "\n", Capacity, "MW")), size = 3, vjust = 2) +
+  theme_void() +
+  theme(legend.position = "none") +
+  labs(title = "Electricity Generation Capacity (MW) of Power Plants in Scotland")
+```
+
+## Cumulative Line (yes.)
+
+```{r}
+# Define power plants data with capacity factors
+power_plants <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Capacity_MW = c(389, 1075, 13, 1550),
+  Capacity_Factor = c(0.40, 0.50, 0.11, 0.85)  # Estimated capacity factors
+)
+
+# Calculate annual energy production in MWh
+power_plants$Annual_MWh <- power_plants$Capacity_MW * power_plants$Capacity_Factor * 8760  # 8760 hours in a year
+
+# Sort the power plants by annual energy production
+power_plants <- power_plants[order(power_plants$Annual_MWh, decreasing = TRUE), ]
+
+# Calculate cumulative annual energy production
+power_plants$Cumulative_MWh <- cumsum(power_plants$Annual_MWh)
+
+# Create line chart
+ggplot(power_plants, aes(x = reorder(Plant, -Annual_MWh), y = Cumulative_MWh / 1000, group = 1)) +
+  geom_line(size = 1.5, color = "blue") +
+  geom_point(size = 4, color = "red") +
+  geom_text(aes(label = paste0(round(Cumulative_MWh / 1000, 0), " GWh")), vjust = -1, hjust = 0.5) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Cumulative Annual Electricity Generation of Power Plants in Scotland",
+       x = "Power Plant",
+       y = "Cumulative Annual Generation (GWh)") +
+  scale_y_continuous(limits = c(0, max(power_plants$Cumulative_MWh / 1000) * 1.1), 
+                     breaks = seq(0, ceiling(max(power_plants$Cumulative_MWh / 1000)), by = 2000))
+
+# Add individual plant capacities to the chart
+ggplot(power_plants, aes(x = reorder(Plant, -Annual_MWh), y = Cumulative_MWh / 1000, group = 1)) +
+  geom_line(size = 1.5, color = "blue") +
+  geom_point(size = 4, color = "red") +
+  geom_text(aes(label = paste0(round(Cumulative_MWh / 1000, 0), " GWh")), vjust = -1, hjust = 0.5) +
+  geom_text(aes(y = (Cumulative_MWh - Annual_MWh/2) / 1000, 
+                label = paste0(round(Annual_MWh / 1000, 0), " GWh")), 
+            vjust = 1.5, hjust = 0.5, color = "darkgreen") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Cumulative Annual Electricity Generation of Power Plants in Scotland",
+       x = "Power Plant",
+       y = "Annual Generation (GWh)") +
+  scale_y_continuous(limits = c(0, max(power_plants$Cumulative_MWh / 1000) * 1.1), 
+                     breaks = seq(0, ceiling(max(power_plants$Cumulative_MWh / 1000)), by = 2000))
+```
+
+Line MW
+
+```{r}
+# Define power plants data
+power_plants <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Capacity = c(389, 1075, 13, 1550),
+  Unit = c("MW", "MW", "MW", "MW")
+)
+
+# Sort the power plants by capacity
+power_plants <- power_plants[order(power_plants$Capacity, decreasing = TRUE), ]
+
+# Create line chart
+ggplot(power_plants, aes(x = reorder(Plant, -Capacity), y = Capacity, group = 1)) +
+  geom_line(size = 1.5, color = "blue") +
+  geom_point(size = 4, color = "red") +
+  geom_text(aes(label = paste0(Capacity, " MW")), vjust = -1, hjust = 0.5) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Electricity Generation Capacity of Power Plants in Scotland",
+       x = "Power Plant",
+       y = "Capacity (MW)") +
+  scale_y_continuous(limits = c(0, max(power_plants$Capacity) * 1.1), 
+                     breaks = seq(0, max(power_plants$Capacity), by = 200))
+
+```
+
+radial
+
+```{r}
+library(viridis)
+library(viridisLite)
+
+# Define power plants data
+power_plants <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Capacity = c(389, 1075, 13, 1550)
+)
+
+# Define the correct colors for each plant, matching the previous code
+plant_colors <- c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF")
+
+# Calculate the angles for the radial chart
+power_plants$fraction <- power_plants$Capacity / sum(power_plants$Capacity)
+power_plants$ymax <- cumsum(power_plants$fraction)
+power_plants$ymin <- c(0, head(power_plants$ymax, n=-1))
+
+# Create the radial bar chart
+ggplot(power_plants, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Plant)) +
+  geom_rect() +
+  coord_polar(theta="y") +
+  xlim(c(0, 4)) +
+  theme_void() +
+  theme(legend.position = "right",
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8),
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5, size = 10)) +
+  geom_text(aes(x = 3.5, y = (ymin + ymax) / 2, label = paste0(Capacity, " MW")), size = 3, color = "white") +
+  scale_fill_manual(values = plant_colors) +
+  labs(title = "Nameplate Capacity of Power Plants in Scotland",
+       subtitle = "Total Capacity: 3,027 MW",
+       fill = "Power Plant")
+In this version:
+```
+
+## Capacity Factor 
+
+```{r}
+library(tidyr)
+
+# Define power plants with their start years
+power_plants_info <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Start_Year = c(2019, 2022, 2016, 1982)
+)
+
+# Create data frame with all years
+years <- 2016:2050
+all_years <- expand.grid(
+  Plant = power_plants_info$Plant,
+  Year = years
+)
+
+# Merge with start years and filter
+power_plants <- merge(all_years, power_plants_info, by = "Plant") %>%
+  filter(Year >= Start_Year)
+
+# Generate capacity factors
+set.seed(123)  # for reproducibility
+power_plants <- power_plants %>%
+  group_by(Plant) %>%
+  mutate(
+    Capacity_Factor = case_when(
+      Plant == "Meygen Tidal Energy Farm" ~ pmin(pmax(seq(0.30, 0.45, length.out = n()) + rnorm(n(), 0, 0.02), 0), 1),
+      Plant == "Seagreen Offshore Wind Farm" ~ pmin(pmax(rep(0.38, n()) + rnorm(n(), 0, 0.03), 0), 1),
+      Plant == "Errol Estate Solar Farm" ~ pmin(pmax(seq(0.08, 0.15, length.out = n()) + rnorm(n(), 0, 0.01), 0), 1),
+      Plant == "Peterhead Power Station" ~ pmin(pmax(seq(0.70, 0.55, length.out = n()) + rnorm(n(), 0, 0.03), 0), 1)
+    )
+  ) %>%
+  ungroup()
+
+# Create the line graph
+ggplot(power_plants, aes(x = Year, y = Capacity_Factor, color = Plant, group = Plant)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  labs(
+    title = "Capacity Factors of Power Plants in Scotland (2016-2050)",
+    x = "Year",
+    y = "Capacity Factor (%)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), 
+                     limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(1980, 2050, by = 10)) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF"))
+
+# Create the line graph with legend underneath in two columns
+ggplot(power_plants, aes(x = Year, y = Capacity_Factor, color = Plant, group = Plant)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",  # Move legend to the bottom
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 9),  # Adjust text size if needed
+    legend.box = "vertical",  # Ensure legend items are aligned properly
+    plot.margin = margin(r = 20, l = 20, b = 40, t = 20, unit = "pt")  # Adjust bottom margin
+  ) +
+  labs(
+    title = "Capacity Factors of Power Plants in Scotland (2016-2050)",
+    x = "Year",
+    y = "Capacity Factor (%)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), 
+                     limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(1980, 2050, by = 10)) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF")) +
+  guides(color = guide_legend(nrow = 2))  # Stack legend items in 2 rows (effectively 2 columns when at the bottom)
+```
+
+## use this one!!
+
+```{r}
+# Define energy sources with their start years
+energy_sources_info <- data.frame(
+  Energy_Source = c("Tidal Energy", "Offshore Wind", "Solar Energy", "Fossil Fuel"),
+  Start_Year = c(2019, 2022, 2016, 1982)
+)
+
+# Create data frame with all years
+years <- 2016:2050
+all_years <- expand.grid(
+  Energy_Source = energy_sources_info$Energy_Source,
+  Year = years
+)
+
+# Merge with start years and filter
+energy_sources <- merge(all_years, energy_sources_info, by = "Energy_Source") %>%
+  filter(Year >= Start_Year)
+
+# Generate capacity factors
+set.seed(123)  # for reproducibility
+energy_sources <- energy_sources %>%
+  group_by(Energy_Source) %>%
+  mutate(
+    Capacity_Factor = case_when(
+      Energy_Source == "Tidal Energy" ~ pmin(pmax(seq(0.30, 0.45, length.out = n()) + rnorm(n(), 0, 0.02), 0), 1),
+      Energy_Source == "Offshore Wind" ~ pmin(pmax(rep(0.38, n()) + rnorm(n(), 0, 0.03), 0), 1),
+      Energy_Source == "Solar Energy" ~ pmin(pmax(seq(0.08, 0.15, length.out = n()) + rnorm(n(), 0, 0.01), 0), 1),
+      Energy_Source == "Fossil Fuel" ~ pmin(pmax(seq(0.70, 0.55, length.out = n()) + rnorm(n(), 0, 0.03), 0), 1)
+    )
+  ) %>%
+  ungroup()
+
+# Create the line graph
+ggplot(energy_sources, aes(x = Year, y = Capacity_Factor, color = Energy_Source, group = Energy_Source)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  labs(
+    title = "Capacity Factors of Energy Sources in Scotland (2016-2050)",
+    x = "Year",
+    y = "Capacity Factor (%)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), 
+                     limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(1980, 2050, by = 10)) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF"))
+
+# Create the line graph with legend underneath in two columns
+ggplot(energy_sources, aes(x = Year, y = Capacity_Factor, color = Energy_Source, group = Energy_Source)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",  # Move legend to the bottom
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 9),  # Adjust text size if needed
+    legend.box = "vertical",  # Ensure legend items are aligned properly
+    plot.margin = margin(r = 20, l = 20, b = 40, t = 20, unit = "pt")  # Adjust bottom margin
+  ) +
+  labs(
+    title = "Capacity Factors of Energy Sources in Scotland (2016-2050)",
+    x = "Year",
+    y = "Capacity Factor (%)"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), 
+                     limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(1980, 2050, by = 10)) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF")) +
+  guides(color = guide_legend(nrow = 2))  # Stack legend items in 2 rows (effectively 2 columns when at the bottom)
+
+```
+
+# LCOE Analysis 
+
+## LCOE Area ?
+
+```{r}
+# Function to calculate LCOE over time
+lcoe_yearly <- function(I, M, F, E, r, n, start_year) {
+  years <- start_year:(start_year + n - 1)
+  total_cost_values <- sapply(1:n, function(t) {
+    sum(sapply(1:t, function(i) (M + F * E) / (1 + r)^i)) + I
+  })
+  lcoe_values <- sapply(1:n, function(t) {
+    numerator <- total_cost_values[t]
+    denominator <- sum(sapply(1:t, function(i) E / (1 + r)^i))
+    return(numerator / denominator)
+  })
+  return(data.frame(Year = years, LCOE = lcoe_values, Total_Cost = total_cost_values))
+}
+
+# Data for each project
+projects <- list(
+  Meygen = list(I = 532000000, M = 2225000, F = 0, E = 389, r = 0.03, n = 25, start_year = 2019),
+  Seagreen = list(I = 4000000000, M = 431000, F = 0, E = 1075, r = 0.075, n = 25, start_year = 2022),
+  Errol_Estate = list(I = 16900000, M = 236000, F = 0, E = 13, r = 0.06, n = 25, start_year = 2016),
+  Peterhead = list(I = 1900000000, M = 1600000, F = 13.84, E = 1550, r = 0.07, n = 30, start_year = 1982)
+)
+
+# Generate LCOE and cost data for each project
+yearly_data <- do.call(rbind, lapply(names(projects), function(p) {
+  df <- lcoe_yearly(
+    projects[[p]]$I, projects[[p]]$M, projects[[p]]$F, projects[[p]]$E,
+    projects[[p]]$r, projects[[p]]$n, projects[[p]]$start_year
+  )
+  df$Project <- p
+  return(df)
+}))
+
+# Ensure Peterhead is included by adjusting the filtering range
+yearly_data <- yearly_data[yearly_data$Year >= 1982 & yearly_data$Year <= 2050, ]
+
+  
+ ggplot(yearly_data, aes(x = Year, y = LCOE, fill = Project)) +
+  geom_area(alpha = 0.5, position = "identity") +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_discrete(labels = c("Meygen" = "MeyGen Tidal Energy Farm",
+                                 "Seagreen" = "Seagreen Offshore Wind Farm",
+                                 "Errol_Estate" = "Errol Estate Solar Plant",
+                                 "Peterhead" = "Peterhead Power Station")) +
+   labs(title = "Levelized Cost of Energy Over Time (1982-20250)",
+       x = "Year",
+       y = "LCOE ($/MWh)",
+       fill = "Power Plant") +
+  theme_minimal()
+
+
+
+```
+
+## LCOE Bar Graph Plot
+
+```{r}
+# Define power plants data
+power_plants <- tibble(
+  plant_name = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Plant", "Peterhead Power Station"),
+  capacity_mw = c(389, 1075, 13, 1550),
+  annual_production_mwh = c(516840, 1075 * 0.38 * 8760, 13 * 0.09 * 8760, 1050000),
+  lifespan_years = c(25, 25, 25, 30),
+  capex = c(532000000, 4000000000, 16900000, 1900000000),
+  annual_opex = c(2225000, 431000, 236000, 1600000),
+  fuel_cost_per_mwh = c(0, 0, 0, 4.1378),
+  discount_rate = c(0.030, 0.075, 0.060, 0.070)
+)
+
+# Function to calculate LCOE
+calculate_lcoe <- function(capex, annual_opex, fuel_cost_per_mwh, annual_production_mwh, lifespan, discount_rate) {
+  total_cost <- capex
+  total_energy <- 0
+  
+  for (year in 1:lifespan) {
+    annual_cost <- annual_opex + (fuel_cost_per_mwh * annual_production_mwh)
+    total_cost <- total_cost + (annual_cost / (1 + discount_rate)^year)
+    total_energy <- total_energy + (annual_production_mwh / (1 + discount_rate)^year)
+  }
+  
+  lcoe <- total_cost / total_energy
+  return(lcoe)
+}
+
+# Calculate LCOE for each plant
+power_plants <- power_plants %>%
+  rowwise() %>%
+  mutate(
+    lcoe = calculate_lcoe(capex, annual_opex, fuel_cost_per_mwh, annual_production_mwh, lifespan_years, discount_rate)
+  ) %>%
+  ungroup()
+
+# Print results
+print(power_plants %>% select(plant_name, lcoe))
+
+# Plot LCOE comparison
+ggplot(power_plants, aes(x = plant_name, y = lcoe, fill = plant_name)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Levelized Cost of Electricity by Power Plant",
+       x = "Power Plant",
+       y = "LCOE ($/MWh)",
+       fill = "Power Plant") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(labels = scales::dollar_format())
+```
+
+## LCOE Line Plot 
+
+```{r}
+# Define power plants data
+power_plants <- tibble(
+  plant_name = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Plant", "Peterhead Power Station"),
+  capacity_mw = c(389, 1075, 13, 1550),
+  annual_production_mwh = c(516840, 1075 * 0.38 * 8760, 13 * 0.09 * 8760, 1050000),
+  lifespan_years = c(25, 25, 25, 30),
+  capex = c(532000000, 4000000000, 16900000, 1900000000),
+  annual_opex = c(2225000, 431000, 236000, 1600000),
+  fuel_cost_per_mwh = c(0, 0, 0, 4.1378),
+  discount_rate = c(0.030, 0.075, 0.060, 0.070),
+  start_year = c(2019, 2022, 2016, 1982)
+)
+
+# Function to calculate LCOE for each year
+calculate_lcoe_yearly <- function(capex, annual_opex, fuel_cost_per_mwh, annual_production_mwh, discount_rate, start_year, end_year) {
+  years <- start_year:end_year
+  lcoe_values <- numeric(length(years))
+  
+  for (i in seq_along(years)) {
+    year <- years[i]
+    if (year >= start_year) {
+      total_cost <- capex + sum(annual_opex / (1 + discount_rate)^(1:i))
+      total_energy <- sum(annual_production_mwh / (1 + discount_rate)^(1:i))
+      lcoe_values[i] <- total_cost / total_energy
+    } else {
+      lcoe_values[i] <- NA
+    }
+  }
+  
+  return(lcoe_values)
+}
+
+# Set a common end year
+end_year <- 2050
+
+# Calculate LCOE for each plant for each year
+lcoe_data <- do.call(rbind, lapply(1:nrow(power_plants), function(i) {
+  plant <- power_plants[i,]
+  lcoe_yearly <- calculate_lcoe_yearly(plant$capex, plant$annual_opex, plant$fuel_cost_per_mwh, 
+                                       plant$annual_production_mwh, plant$discount_rate, 
+                                       plant$start_year, end_year)
+  data.frame(
+    plant_name = rep(plant$plant_name, length(lcoe_yearly)),
+    year = plant$start_year:end_year,
+    lcoe_yearly = lcoe_yearly
+  )
+}))
+
+# Convert lcoe_data to a tibble
+lcoe_data <- as_tibble(lcoe_data)
+
+# Create line graph
+ggplot(lcoe_data, aes(x = year, y = lcoe_yearly, color = plant_name)) +
+  geom_line(size = 1) +
+  labs(title = "Levelized Cost of Electricity Over Time (1982-2050)",
+       x = "Year",
+       y = "LCOE ($/MWh)",
+       color = "Power Plant") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::dollar_format()) +
+  scale_x_continuous(breaks = seq(1980, 2050, by = 5)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+# Environmental Impact
+
+## Capacity vs. Land Use
+
+```{r}
+library(ggrepel)
+library(scales)
+
+# Create the data frame with land use data and capacity
+land_use_data <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Side_Length = c(2600.00, 55596.77, 539.79, 2622.91),
+  Capacity_MW = c(389, 1075, 13, 1550)  # Added capacity data
+)
+
+# Calculate the area in square kilometers
+land_use_data <- land_use_data %>%
+  mutate(Area_sq_km = (Side_Length^2) / 1e6)
+
+# Create the bubble chart
+ggplot(land_use_data, aes(x = Capacity_MW, y = Area_sq_km, size = Area_sq_km, color = Plant)) +
+  geom_point(alpha = 0.7) +
+  scale_size(range = c(5, 20), labels = comma) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF")) +
+  scale_x_continuous(labels = comma) +
+  scale_y_log10(labels = comma) +
+  geom_text_repel(aes(label = Plant), size = 3, force = 10) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  ) +
+  labs(
+    title = "Power Plant Comparison: Capacity vs. Land Use",
+    x = "Capacity (MW)",
+    y = "Land Use Area (sq km, log scale)",
+    size = "Land Use Area (sq km)"
+  )
+```
+
+## Land Use by Plant 
+
+```{r}
+# Create the data frame with land use data
+land_use_data <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  Side_Length = c(2600.00, 55596.77, 539.79, 2622.91)
+)
+
+# Calculate the area in square kilometers
+land_use_data <- land_use_data %>%
+  mutate(Area_sq_km = (Side_Length^2) / 1e6)
+
+# Create the bubble chart
+ggplot(land_use_data, aes(x = reorder(Plant, -Area_sq_km), y = Area_sq_km, size = Area_sq_km, color = Plant)) +
+  geom_point(alpha = 0.7) +
+  scale_size(range = c(10, 30), labels = comma) +
+  scale_color_manual(values = c("#F8766D", "#00BFC4", "#7CAE00", "#C77CFF")) +
+  scale_y_log10(labels = comma) +
+  geom_text_repel(aes(label = sprintf("%.2f sq km", Area_sq_km)), 
+                  size = 4, 
+                  force = 10, 
+                  color = "black",  # Changed text color to black
+                  fontface = "bold") +  # Made the text bold for better visibility
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    axis.title.x = element_blank()
+  ) +
+  labs(
+    title = "Land Use Area by Power Plant",
+    y = "Land Use Area (sq km, log scale)"
+  )
+```
+
+Carbon
+
+```{r}
+power_sources <- data.frame(
+  Source = c("Offshore Wind", "Tidal", "Solar", "Natural Gas"),
+  Emissions = c(6, 0, 0, 50159.5)
+)
+
+# Create bar chart
+ggplot(power_sources, aes(x = Source, y = Emissions, fill = Source)) +
+  geom_bar(stat = "identity") +
+  scale_y_log10() +  # Using log scale due to large difference
+  theme_minimal() +
+  labs(title = "Operational Carbon Emissions by Power Source",
+       y = "Emissions (g CO2/kWh, log scale)",
+       x = "Power Source") +
+  scale_fill_manual(values = c("#00BFC4", "#F8766D", "#7CAE00", "#C77CFF"))
+```
+
+Emissions
+
+```{r}
+library(tidyr)
+
+# Sample data (you should replace this with actual data)
+environmental_impact <- data.frame(
+  Plant = c("Meygen Tidal Energy Farm", "Seagreen Offshore Wind Farm", "Errol Estate Solar Farm", "Peterhead Power Station"),
+  CO2_emissions = c(15, 12, 45, 490),  # g CO2 eq/kWh
+  NOx_emissions = c(0.05, 0.04, 0.15, 0.7),  # g/kWh
+  SO2_emissions = c(0.02, 0.02, 0.08, 0.5),  # g/kWh
+  Particulate_matter = c(0.01, 0.02, 0.02, 0.1)  # g/kWh
+)
+
+# Reshape the data for stacked bar chart
+environmental_impact_long <- pivot_longer(environmental_impact, 
+                                          cols = c(CO2_emissions, NOx_emissions, SO2_emissions, Particulate_matter),
+                                          names_to = "Emission_Type",
+                                          values_to = "Amount")
+
+# Create the stacked bar chart
+ggplot(environmental_impact_long, aes(x = Plant, y = Amount, fill = Emission_Type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom") +
+  labs(title = "Environmental Impact: Emissions by Power Plant",
+       x = "Power Plant",
+       y = "Emissions (g/kWh)",
+       fill = "Emission Type") +
+  scale_fill_brewer(palette = "Set3")
+```
